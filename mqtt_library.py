@@ -6,13 +6,12 @@ MQTT_KEEPALIVE = 60
 
 def mqtt_connect(host, client_id):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, 1883))
+    s.connect((host, MQTT_PORT))
     s.sendall(pack_connect(client_id))
 
     connack = s.recv(4)
-    if connack[0] != 0x20 or connack[3] != 0x00:
-        raise Exception("Connection failed")
-
+    if len(connack) != 4 or connack[0] != 0x20 or connack[3] != 0x00:
+        raise Exception("Connection failed or malformed CONNACK")
     return s
 
 def mqtt_disconnect(sock):

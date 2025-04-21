@@ -1,4 +1,3 @@
-# publisher_client.py
 from mqtt_library import mqtt_connect, mqtt_publish, mqtt_disconnect
 import time
 import random
@@ -8,7 +7,7 @@ sock = mqtt_connect("localhost", client_id)
 print(f"[{client_id}] Connected to broker")
 
 try:
-    for i in range(5):  # publish 5 readings
+    for i in range(5):
         temp = round(20 + random.random() * 5, 2)
         message = f"{temp}°C"
         mqtt_publish(sock, "sensors/temp", message)

@@ -1,5 +1,6 @@
 # mqtt_broker.py
 import socket
+import threading
 from mqtt_helpers import decode_string, unpack_fixed_header
 
 # implement queue management for the topics.
@@ -38,6 +39,7 @@ def append_to_topic(topic, message):
 
     republish_topics(topic)
 
+
 # whenever you get a new publish message after appending to queue.
 # publish the queues messages to its respective subscribers.
 def republish_topics(topic):
@@ -47,22 +49,19 @@ def republish_topics(topic):
             fire_publish(subscriber, topic, message)
             print("sent message to subscriber, on given topic")
         except Exception as e:
-            print("FAILURE")
+            print(f"Failed to send to subscriber: {e}")
 
 # when receive a subscribe message add the client to that subscriber.
 # if that topic doesnt exist call create_topic and add subscriber to it.
 def add_subscriber(topic, client_socket):
+
     create_topic(topic)
     subscribers[topic].add(client_socket)
     if client_socket not in client_subs:
         client_subs[client_socket] = set()
-    
+
     client_subs[client_socket].add(topic)
-    print("client subbed to topic congrats")
-    # if client alrd subscribed, do not send the last message
-    if client_socket in client_subs and topic in client_subs[client_socket]:
-        print("Already subscribed to topic")
-        return
+    print("Client subscribed to topic!")
 
 #sending last message acc mqtt spec
     if topics[topic]:
@@ -86,16 +85,8 @@ def fire_publish(client_socket, topic, message):
 # a disconnect request, will implement. - done somewhat
 # also make it such that the client breaks connection only when a 
 # disconnect message comes.
-def start_broker(host='0.0.0.0', port=1883):
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) #allows multiple req
-    server_socket.bind((host, port))
-    server_socket.listen(1)
-    print(f"Broker listening on {host}:{port}")
-
-    client_socket, addr = server_socket.accept()
+def handle_client(client_socket, addr):
     print(f"Client connected from {addr}")
-
     while True:
         try:
             data = client_socket.recv(1024)
@@ -127,13 +118,11 @@ def start_broker(host='0.0.0.0', port=1883):
                 topic, i = decode_string(data, index + 2)
                 print(f"Received SUBSCRIBE for topic '{topic}'")
                 add_subscriber(topic, client_socket)
+
                 # Send SUBACK
                 suback = bytes([0x90, 3, 0x00, 0x00])
                 client_socket.sendall(suback)
                 print("Sent SUBACK")
-                _, i = decode_string(data, index + 2)
-                topic, _ = decode_string(data, i)
-                add_subscriber(topic, client_socket)
 
              # DISCONNECT
             elif packet_type == 0xE0: 
@@ -151,6 +140,19 @@ def start_broker(host='0.0.0.0', port=1883):
         except Exception as e:  
             print("Error:", e)
             break
+
+
+def start_broker(host='0.0.0.0', port=1883):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((host, port))
+    server_socket.listen(5)
+    print(f"Broker listening on {host}:{port}")
+
+    while True:
+        client_socket, addr = server_socket.accept()
+        thread = threading.Thread(target=handle_client, args=(client_socket, addr))
+        thread.start()
 
 if __name__ == "__main__":
     start_broker()
