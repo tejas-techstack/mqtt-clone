@@ -10,10 +10,13 @@ def mqtt_connect(host, client_id):
     s.sendall(pack_connect(client_id))
 
     connack = s.recv(4)
-    if connack[0] != 0x20 or connack[3] != 0x00:
-        raise Exception("Connection failed")
-
+    if len(connack) != 4 or connack[0] != 0x20 or connack[3] != 0x00:
+        raise Exception("Connection failed or malformed CONNACK")
     return s
+
+def mqtt_disconnect(sock):
+    sock.sendall(bytes([0xE0, 0x00]))
+    sock.close()
 
 def mqtt_publish(sock, topic, message):
     packet = pack_publish(topic, message)
