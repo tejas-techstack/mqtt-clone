@@ -24,6 +24,9 @@ def unpack_fixed_header(data):
     value = 0
     index = 1
     while True:
+        if index >= len(data):
+            raise ValueError("Malformed fixed header: incomplete remaining length")
+
         byte = data[index]
         value += (byte & 127) * multiplier
         index += 1
