@@ -15,8 +15,6 @@ topics ={} #topic -> [message array]
 subscribers ={} #topic -> set of client sockets
 client_subs = {} #client socket->set of topics subscribed
 
-
-
 # When a publish message with a new topic arives just
 # add it to a new queue.
 def create_topic(topic):
@@ -31,14 +29,12 @@ def create_topic(topic):
 def append_to_topic(topic, message):
     if topic in topics:
         topics[topic].append(message)
-        print("Appended message to existing topic")
     else:
-        print("Topic does not exist, creating new topic")
+        print(f"Topic {topic} does not exist, creating new topic")
         create_topic(topic)
         topics[topic].append(message)
 
     republish_topics(topic)
-
 
 # whenever you get a new publish message after appending to queue.
 # publish the queues messages to its respective subscribers.
@@ -47,7 +43,6 @@ def republish_topics(topic):
         try:
             message= topics[topic][-1] #the last message in a given topic
             fire_publish(subscriber, topic, message)
-            print("sent message to subscriber, on given topic")
         except Exception as e:
             print(f"Failed to send to subscriber: {e}")
 
@@ -62,13 +57,6 @@ def add_subscriber(topic, client_socket):
 
     client_subs[client_socket].add(topic)
     print("Client subscribed to topic!")
-
-#sending last message acc mqtt spec
-    if topics[topic]:
-        last_message = topics[topic][-1]
-        fire_publish(client_socket, topic, last_message)
-
-
 
 def fire_publish(client_socket, topic, message):
     topic_encoded = topic.encode()
@@ -108,8 +96,8 @@ def handle_client(client_socket, addr):
             elif packet_type == 0x30: 
                 topic, i = decode_string(data, index)
                 message = data[i:].decode()
-                print(f"Received message on topic '{topic}': {message}")
                 append_to_topic(topic, message)
+                print(f"Received message on topic '{topic}': {message}")
             
               # SUBSCRIBE
             elif packet_type == 0x82:
@@ -123,6 +111,10 @@ def handle_client(client_socket, addr):
                 suback = bytes([0x90, 3, 0x00, 0x00])
                 client_socket.sendall(suback)
                 print("Sent SUBACK")
+
+                if topics[topic]:
+                    last_message = topics[topic][-1]
+                    fire_publish(client_socket, topic, last_message)
 
              # DISCONNECT
             elif packet_type == 0xE0: 
@@ -149,10 +141,15 @@ def start_broker(host='0.0.0.0', port=1883):
     server_socket.listen(5)
     print(f"Broker listening on {host}:{port}")
 
-    while True:
-        client_socket, addr = server_socket.accept()
-        thread = threading.Thread(target=handle_client, args=(client_socket, addr))
-        thread.start()
+    try:
+        while True:
+            client_socket, addr = server_socket.accept()
+            thread = threading.Thread(target=handle_client, args=(client_socket, addr))
+            thread.start()
+    finally:
+        server_socket.close()
+        print("Ended server socket")
+        return
 
 if __name__ == "__main__":
     start_broker()

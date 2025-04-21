@@ -22,9 +22,16 @@ def mqtt_publish(sock, topic, message):
     packet = pack_publish(topic, message)
     sock.sendall(packet)
 
+# Returns true if succeded and false if not.
 def mqtt_subscribe(sock, packet_id, topic):
     packet = pack_subscribe(packet_id, topic)
     sock.sendall(packet)
+
+    suback = mqtt_receive(sock)
+    if suback[0] != 0x90:
+        print(f"Error: Invalid packet type:{suback[0]}")
+        return False
+    return True
 
 def mqtt_receive(sock, buffer_size=1024):
     return sock.recv(buffer_size)

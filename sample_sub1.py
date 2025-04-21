@@ -4,11 +4,15 @@ client_id = "temp-monitor"
 sock = mqtt_connect("localhost", client_id)
 print(f"[{client_id}] Connected to broker")
 
-mqtt_subscribe(sock, packet_id=1, topic="sensors/temp")
+suback = mqtt_subscribe(sock, packet_id=1, topic="sensors/temp")
+if not suback:
+    print("Error with suback")
+    exit(0)
+
 print(f"[{client_id}] Subscribed to sensors/temp")
 
 try:
-    for _ in range(5):  # wait for 5 messages
+    while True:
         data = mqtt_receive(sock)
         if data:
             topic_len = (data[2] << 8) + data[3]
