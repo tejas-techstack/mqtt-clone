@@ -1,5 +1,6 @@
 # mqtt_broker.py
 import socket
+import ssl
 import threading
 from mqtt_library import *
 
@@ -114,6 +115,7 @@ def handle_client(client_socket, addr):
         connected_clients.discard(client_socket)
         client_socket.close()
 
+"""
 def start_broker(host='0.0.0.0', port=1883):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -139,6 +141,45 @@ def start_broker(host='0.0.0.0', port=1883):
         server_socket.close()
         print("Server socket closed.")
         return
+"""
+
+def start_broker(host='0.0.0.0', port=8883):  # Use port 8883 for MQTT over SSL
+    # Create raw socket
+    raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    raw_socket.bind((host, port))
+    raw_socket.listen(5)
+    print(f"SSL Broker listening on {host}:{port}")
+
+    # Create SSL context
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(certfile='server.crt', keyfile='server.key')
+
+    try:
+        while True:
+            client_socket, addr = raw_socket.accept()
+
+            # Wrap client connection with SSL
+            try:
+                ssl_socket = context.wrap_socket(client_socket, server_side=True)
+                thread = threading.Thread(target=handle_client, args=(ssl_socket, addr))
+                thread.start()
+            except ssl.SSLError as e:
+                print(f"SSL error with client {addr}: {e}")
+                client_socket.close()
+
+    except KeyboardInterrupt:
+        print("\nBroker shutting down. (simulates clean exit for broker)")
+    finally:
+        print("Disconnecting all clients")
+        for client in list(connected_clients):
+            try:
+                client.shutdown(socket.SHUT_RDWR)
+                client.close()
+            except Exception as e:
+                print(f"Error disconnecting client: {e}")
+        raw_socket.close()
+        print("Server socket closed.")
 
 if __name__ == "__main__":
     start_broker()

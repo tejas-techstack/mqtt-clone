@@ -1,18 +1,32 @@
 import socket
+import ssl
 
-MQTT_PORT = 1883
+MQTT_PORT = 8883
 MQTT_KEEPALIVE = 60
 
 def mqtt_connect(host, client_id):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, MQTT_PORT))
-    s.sendall(pack_connect(client_id))
+    raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    connack = s.recv(4)
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE  # Change to CERT_REQUIRED in production
+    ssl_sock = context.wrap_socket(raw_sock, server_hostname=host)
+
+    ssl_sock.connect((host, MQTT_PORT))
+    ssl_sock.sendall(pack_connect(client_id))
+
+    connack = ssl_sock.recv(4)
     if len(connack) != 4 or connack[0] != 0x20 or connack[3] != 0x00:
         raise Exception("Connection failed or malformed CONNACK")
     print("Received Connack")
-    return s
+
+    print(f"Socket type: {type(ssl_sock)}")
+    if hasattr(ssl_sock, 'cipher'):
+        print("[SSL] Secure connection established.")
+        print("Cipher used:", ssl_sock.cipher())
+    else:
+        print("[WARNING] Connection is not using SSL!")
+    return ssl_sock
 
 def mqtt_disconnect(sock):
     sock.sendall(bytes([0xE0, 0x00]))
