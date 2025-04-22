@@ -12,7 +12,14 @@ try:
         message = f"{temp}°C"
         mqtt_publish(sock, "sensors/temp", message)
         print(f"[{client_id}] Published: {message}")
-        time.sleep(5)
-finally:
+        time.sleep(2)
+except BrokenPipeError as brokenPipe:
+    print(f"Error occured : {brokenPipe}, this means the server crashed.")
+    print("Disconnected by default.")
+except (Exception, KeyboardInterrupt) as e:
+    print(f"\nExiting due to {e}: (simulates clean exit)")
+    mqtt_disconnect(sock)
+    print(f"[{client_id}] Disconnected")
+else:
     mqtt_disconnect(sock)
     print(f"[{client_id}] Disconnected")

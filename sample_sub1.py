@@ -19,6 +19,13 @@ try:
             topic = data[4:4+topic_len].decode()
             message = data[4+topic_len:].decode()
             print(f"[{client_id}] Received on '{topic}': {message}")
-finally:
+except BrokenPipeError as brokenPipe:
+    print(f"Error occured : {brokenPipe}, this means the server crashed.")
+    print("Disconnected by default.")
+except:
+    print(f"\nExiting (simulates clean exit)")
+    mqtt_disconnect(sock)
+    print(f"[{client_id}] Disconnected")
+else:
     mqtt_disconnect(sock)
     print(f"[{client_id}] Disconnected")

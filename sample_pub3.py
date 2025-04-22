@@ -2,17 +2,20 @@ from mqtt_library import mqtt_connect, mqtt_publish, mqtt_disconnect
 import time
 import random
 
-client_id = "water-level-sensor-1"
+client_id = "temp-sensor-1"
 sock = mqtt_connect("localhost", client_id)
 print(f"[{client_id}] Connected to broker")
 
 try:
-    while True:
-        water_level = round(40 + random.random() * 5, 2)
-        message = f"{water_level}m"
-        mqtt_publish(sock, "sensors/water-level", message)
+    choice = True
+    while choice:
+        topic, message = eval(input("Enter input as (\"topic\", \"message\"):"))
+        mqtt_publish(sock, topic, message)
         print(f"[{client_id}] Published: {message}")
-        time.sleep(2)
+        choice = input("Continue (y/n):")
+        if choice == "n":
+            break
+
 except BrokenPipeError as brokenPipe:
     print(f"Error occured : {brokenPipe}, this means the server crashed.")
     print("Disconnected by default.")
